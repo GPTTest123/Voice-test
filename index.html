@@ -6,7 +6,7 @@
     <title>Audio Transcription and GPT-4 Response</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <meta http-equiv="Permissions-Policy" content="microphone=(self)">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://hook.eu2.make.com; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com;">
     <style>
         body { font-family: Arial, sans-serif; background-color: #f0f0f0; color: #333; }
         #recordButton { background-color: #007BFF; color: white; padding: 10px 20px; border: none; cursor: pointer; }
@@ -78,15 +78,22 @@
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
+            .then(response => response.text()) // Ändern zu .text() statt .json()
             .then(data => {
-                if (data.text) {
+                try {
+                    const jsonData = JSON.parse(data); // Manuelles Parsen und Überprüfung
+                    if (jsonData.text) {
+                        transcriptionParagraph.style.display = 'block';
+                        transcriptionParagraph.textContent = jsonData.text;
+                        sendToGPT(jsonData.text);
+                    } else {
+                        transcriptionParagraph.style.display = 'block';
+                        transcriptionParagraph.textContent = 'Transkription fehlgeschlagen. Bitte erneut versuchen.';
+                    }
+                } catch (error) {
+                    console.error('Fehler beim Parsen der Antwort', error);
                     transcriptionParagraph.style.display = 'block';
-                    transcriptionParagraph.textContent = data.text;
-                    sendToGPT(data.text);
-                } else {
-                    transcriptionParagraph.style.display = 'block';
-                    transcriptionParagraph.textContent = 'Transkription fehlgeschlagen. Bitte erneut versuchen.';
+                    transcriptionParagraph.textContent = 'Fehler bei der Transkription. Bitte erneut versuchen.';
                 }
             })
             .catch(error => {
@@ -102,10 +109,11 @@
                 {"role": "user", "content": transcribedText}
             ];
 
-            fetch(WEBHOOK_URL, {
+            fetch('https://api.openai.com/v1/chat/completions', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${API_KEY}`
                 },
                 body: JSON.stringify({
                     model: 'gpt-4',
@@ -133,10 +141,11 @@
         }
 
         function generateSpeech(text) {
-            fetch(WEBHOOK_URL, {
+            fetch('https://api.openai.com/v1/audio/speech', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${API_KEY}`
                 },
                 body: JSON.stringify({
                     model: 'tts-1',
@@ -154,6 +163,23 @@
             .catch(error => {
                 console.error('Fehler bei der Sprachausgabe', error);
                 alert('Fehler bei der Sprachausgabe. Bitte erneut versuchen.');
+            });
+        }
+
+        function sendToWebhook(transcribedText) {
+            fetch(WEBHOOK_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ text: transcribedText })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Erfolgreich an Webhook gesendet:', data);
+            })
+            .catch(error => {
+                console.error('Fehler beim Senden an Webhook:', error);
             });
         }
     </script>
