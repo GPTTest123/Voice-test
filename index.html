@@ -78,8 +78,9 @@
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.text()) // Ändern zu .text() statt .json()
+            .then(response => response.text()) // Antwort als Text behandeln
             .then(data => {
+                console.log('Antwort vom Webhook:', data); // Logge die Antwort zur Diagnose
                 try {
                     const jsonData = JSON.parse(data); // Manuelles Parsen und Überprüfung
                     if (jsonData.text) {
